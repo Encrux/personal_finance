@@ -6,6 +6,8 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import tqdm
 
+import retrieval
+
 columns = [
     "date",
     "value_date",
@@ -43,7 +45,7 @@ prompt_template = ("I'm trying to categorize my payments. Can you help me with t
                    "Please do not repeat the full list categories in your response. \n"
                    "the possible categories are [categories]. \n"
                    "Alright, here's the payment info: \n"
-                   "Payee: [payee], Purpose: [purpose] \nCategory: ")
+                   "Payee: [payee], Purpose: [purpose] \n Category: ")
 
 
 def plot_top_n(n: int):
@@ -126,26 +128,40 @@ def categorize_payment(payee: str, purpose: str):
 
 def categorize_all_payments(start_date: datetime, end_date: datetime):
     data = _open_csv('account.csv')
-    data = data[data['date'] > start_date]
-    data = data[data['date'] <= end_date]
+    if start_date is not None:
+        data = data[data['date'] > start_date]
+    if end_date is not None:
+        data = data[data['date'] <= end_date]
 
     progress_bar = tqdm.tqdm(total=len(data))
 
     categories_dict = {c: [] for c in categories}
     for i, row in data.iterrows():
         progress_bar.update(1)
-        cat = categorize_payment(row['payee'], row['purpose'])
+        cat = retrieval.categorize_payment(row['payee'], row['purpose'])  #TODO: change to categorize_payment
         categories_dict[cat].append(row)
 
     print("Done categorizing payments")
     return categories_dict
 
 
+def update(progress_bar, x):
+    progress_bar.update(1)
+    return categorize_payment(x['payee'], x['purpose'])
+
+
 if __name__ == '__main__':
-    spending = categorize_all_payments(
-        start_date=datetime.datetime(2024, 1, 1),
-        end_date=datetime.datetime.now(),
-    )
-    for category, payments in spending.items():
-        print(f"{category}: {len(payments)}")
-        print(f"Total amount: {sum([p['amount'] for p in payments])}")
+    transactions = _open_csv('account.csv')
+
+    # spending = categorize_all_payments(
+    #     start_date=datetime.datetime(2024, 1, 1),
+    #     end_date=datetime.datetime.now(),
+    # )
+    # for category, payments in spending.items():
+    #     print(f"{category}: {len(payments)}")
+    #     print(f"Total amount: {sum([p['amount'] for p in payments])}")
+
+    progress_bar = tqdm.tqdm(total=len(transactions))
+    transactions['category'] = transactions.apply(lambda x: update(progress_bar, x), axis=1)
+
+    transactions.to_csv('categorized_account.csv', index=False)
