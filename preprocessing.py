@@ -30,6 +30,9 @@ categories = [
     "clothes",
     "amazon",
     "studierendenwerk karlsruhe",
+    "phone",
+    "transport",
+    "sports",
     "other",
 ]
 
